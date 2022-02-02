@@ -1,6 +1,7 @@
 import iris
+import numpy as np
 
-from typing import List
+from typing import List, Tuple
 
 class Cube():
     """
@@ -105,6 +106,28 @@ class Cube():
     __is_coord = is_coord
 
 
+    def get_cube_name(self) -> str:
+        """
+        Return either standard name or long name
+        """
+        if self.cube.standard_name != None:
+            return self.cube.standard_name
+        elif self.cube.long_name != None:
+            return self.cube.long_name
+        
+        return None
+
+
+    def get_cube_units(self) -> str:
+        """
+        Return cube units
+        """
+        if self.cube.units != None:
+            return self.cube.units
+        
+        return None
+
+
     def set_constraint(self, variable: str, condition) -> None:
         """
         Method for setting constraint against valid coordinate of the cube.
@@ -177,6 +200,23 @@ class Cube():
     def get_cube(self):
         return self.cube
 
+
+    def _find_cube_min_max(self) -> None:
+        """
+        Find and set the maximum and minimum values in the cube
+        """
+        self.max_val = np.max(self.cube.data)
+        self.min_val = np.min(self.cube.data)
+
+    def get_cube_min_max(self) -> Tuple[int, int]:
+        """
+        Return a tuple of the min and max values of the cube's data.
+        """
+        if not hasattr(self, 'max_val'):
+            self._find_cube_min_max()
+            
+        return (self.min_val, self.max_val)
+        
     
     ############################################################################
     ####        The following methods are used for the Animator class       ####
@@ -193,6 +233,11 @@ class Cube():
             self.iterator_coord = coord
             self.__set_coord_points(coord)
             self.frame_count = len(self.coord_points[coord])
+
+    
+    def get_frame_count(self) -> int:
+        """return frame count"""
+        return self.frame_count
 
 
     def __set_coord_points(self, coord_name: str) -> None:
