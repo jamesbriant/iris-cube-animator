@@ -1,10 +1,10 @@
-import iris
 import iriscubehandler as ich
 import matplotlib.pyplot as plt
-import iris.quickplot as qplt
-from matplotlib.animation import FuncAnimation
+import iris.plot as iplt
+import numpy as np
+from matplotlib.animation import FuncAnimation, FFMpegWriter
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 class Animator():
     """
@@ -23,6 +23,14 @@ class Animator():
         self.animation = None
         self.coord_points = {}
         self.frame_count = 0
+        self.animation_interval = 100
+        self.coastlines = False
+        self.plot_color_steps = 25
+        self.pause = False
+        self.pause_frames = []
+        self.pause_start_frames = []
+        self.pause_end_frames = []
+        self.total_paused_frames = 0
 
     
     def add_cubes(self, new_cubes: List[ich.Cube]) -> None:
@@ -49,7 +57,57 @@ class Animator():
         self.fig_count = fig_dims[0] * fig_dims[1]
 
 
-    def check_fig_dims(self) -> bool:
+    def set_animation_interval(self, interval: int = 100) -> None:
+        """
+        Set animation_interval
+
+        interval : int
+            new animation interval to be set
+        """
+        self.animation_interval = interval
+
+
+    def include_coastlines(self) -> None:
+        """
+        Include coastlines in final animation figure.
+        """
+        self.coastlines = True
+
+
+    def set_plot_color_steps(self, steps: int) -> None:
+        """
+        Set the number of colour steps for the animation
+        """
+        self.plot_color_steps = steps
+
+
+    def set_pause_frames(self, pause_frames: List[Tuple[Union[int, str], int]]) -> None:
+        """
+        Set of the frames on which to pause the animation. Also provide the number of frames to pause for.
+
+        pause_frames : List[Tuple[int, int]]
+            list of 2-tuples of the form (pause_location, pause duration)
+        """
+        self.pause_frames = pause_frames
+
+    
+    def _calculate_pause_frame_locations(self) -> None:
+        """
+        Calculate the frames at which pauses start and finish.
+        """
+        buffer = 0
+        for start, duration in self.pause_frames:
+            if start == 'end':
+                start = self.smallest_frame_count - 2
+            
+            self.pause_start_frames.append(start + buffer)
+            self.pause_end_frames.append(start + buffer + duration)
+            buffer += duration
+
+        self.total_paused_frames = buffer
+
+
+    def _check_plotting_dimensions(self) -> None:
         """
         Check if the requested figure dimensions equals the requested plots from the cube handlers.
         """
@@ -59,6 +117,19 @@ class Animator():
 
         assert cube_list_fig_count == self.fig_count, f"Expected plot count ({cube_list_fig_count}) does not equal requested figure count ({self.fig_count})."
 
+
+    def _set_iterator_frame_count(self) -> None:
+        """
+        Set smallest iterator dimension size
+        """
+        smallest_frame_count = self.cube_list[0].get_frame_count()
+        for cube in self.cube_list[1:]:
+            frame_count = cube.get_frame_count()
+            if frame_count < smallest_frame_count:
+                smallest_frame_count = frame_count
+
+        self.smallest_frame_count = smallest_frame_count
+            
 
     def _create_plotting_slices(self) -> None:
         """
@@ -80,6 +151,29 @@ class Animator():
                 self.plotting_sequence.append(i)
                 self.cube_selector_sequence.append(n)
             n += 1
+
+    
+    def _create_subplot_titles(self) -> None:
+        """
+        Create the titles for each subplot
+        """
+        self.subplot_titles = []
+        for cube in self.cube_list:
+            title = cube.get_cube_name()
+            units = cube.get_cube_units()
+            self.subplot_titles.append(f'{title} / {units}')
+
+
+    def _set_min_max_vals(self) -> None:
+        """
+        
+        """
+        self.max_vals = []
+        self.min_vals = []
+        for cube in self.cube_list:
+            vals = cube.get_cube_min_max()
+            self.min_vals.append(vals[0])
+            self.max_vals.append(vals[1])
 
 
     def set_save_path(self, path: str) -> None:
@@ -124,14 +218,34 @@ class Animator():
         if path != None:
             self.set_save_path(path)
 
+        # Check the requested dimensions match the total number of cubes for plotting
+        self._check_plotting_dimensions()
+
+        # Set smallest iterator dimension size
+        self._set_iterator_frame_count()
+
+        # Calculate pause locations
+        self._calculate_pause_frame_locations()
+
+        # Create the figure for plotting
         fig = plt.figure()
 
         # Create the plotting slices
         self._create_plotting_slices()
         self._generate_plotting_sequence()
 
+        # Create subplot titles
+        self._create_subplot_titles()
+
+        # Find the min and max values for the cubes
+        self._set_min_max_vals()
+
         I = self.fig_dims[0]
         J = self.fig_dims[1]
+
+        self.pause = [False]*self.fig_count
+        self.paused_frame_data = []
+        self.pseudo_frame = 0
 
         def update(frame=0):
             # clear the current figure
@@ -141,20 +255,66 @@ class Animator():
             n = 0 # subplot number
             for i in range(I): #iterate over the rows
                 for j in range(J): #iterate over the columns
+                    # select the n'th subplot
                     n += 1
                     plt.subplot(I, J, n)
 
-                    print(frame, n, self.plotting_sequence[n-1], 'HERE')
+                    cube_selector = self.cube_selector_sequence[n-1]
 
-                    # qplt.contourf(self.cube_list[n-1]._get_next_slice(self.plotting_sequence[n-1]), 25)
-                    qplt.contourf(self.cube_list[self.cube_selector_sequence[n-1]]._get_next_slice(self.plotting_sequence[n-1]), 25)
-                    plt.gca().coastlines()
+                    # Check if pause is requested
+                    if self.pause[cube_selector] == False:
+                        data_to_plot = self.cube_list[cube_selector]._get_next_slice(self.plotting_sequence[n-1])
+                        self.pseudo_frame += 1
+                        if frame in self.pause_start_frames:
+                            # Start of a pause!
+                            self.pause[cube_selector] = True
+                            # save the data
+                            self.paused_frame_data.append(data_to_plot)
+                    else:
+                        # get paused data
+                        data_to_plot = self.paused_frame_data[n-1]
+                        # check for the end of the pause on the final subplot
+                        if frame in self.pause_end_frames and n == self.fig_count:
+                            # end the 'pause', delete the saved data and reset paused_frame_data
+                            self.pause = [False]*self.fig_count
+                            del self.paused_frame_data
+                            self.paused_frame_data = []
+                        
+
+                    # plot the data
+                    iplt.contourf(
+                        data_to_plot, 
+                        self.plot_color_steps,
+                        levels=np.linspace(
+                            self.min_vals[cube_selector], 
+                            self.max_vals[cube_selector], 
+                            self.plot_color_steps
+                        )
+                    )
+
+                    # add title
+                    plt.gca().set_title(self.subplot_titles[cube_selector] + f' - frame: {self.pseudo_frame}')
+
+                    # Add the colorbar
+                    # ticklist = np.linspace(self.min_vals[cube_selector], self.max_vals[cube_selector], 8)
+                    plt.colorbar(orientation="horizontal")#, ticks=ticklist)
+
+                    # Add coastlines if requested
+                    if self.coastlines == True:
+                        plt.gca().coastlines()
             
-        # self.animation = FuncAnimation(fig, update, init_func=update, frames=self.frame_count-1, interval=100, blit=False, repeat=False)
-        self.animation = FuncAnimation(fig, update, init_func=update, frames=31, interval=100, blit=False, repeat=False)
+        self.animation = FuncAnimation(
+            fig, 
+            update, 
+            init_func=update, 
+            frames=self.smallest_frame_count + self.total_paused_frames - 1, 
+            interval=self.animation_interval, 
+            blit=False, 
+            repeat=False
+        )
 
 
-    def save_animation(self, path: str = None) -> None:
+    def save_animation(self, path: str = None) -> int:
         """
         Save animation as gif
 
@@ -183,3 +343,19 @@ class Animator():
         """
         self.animate()
         self.save_animation(path)
+
+
+    def save_animation_mp4(self, path: str = None) -> int:
+        """
+        
+        """
+        if not self.is_save_path_set(path):
+            print('save_path not set. Provide a path or use set_save_path().')
+            return 1
+
+        if self.animation == None:
+            print('No animation to save! Run animate()')
+            return 2
+
+        self.animation.save(self.save_path, writer=FFMpegWriter(fps=1000/self.animation_interval, bitrate=100000), dpi=200)
+        return 0
