@@ -1,10 +1,6 @@
-from statistics import mean
 import irisdataloader as idl
 import iriscubehandler as ich
 import iriscubeanimator as icp
-import iris
-import matplotlib.pyplot as plt
-import iris.quickplot as qplt
 
 path = 'data/ECMWF_ERA-40_subset.nc'
 
@@ -20,15 +16,18 @@ mean_sea_level_pressure.set_time_constraint(lambda t: t.point.hour == 12)
 
 
 mean_sea_level_pressure.set_iterator_coord('time')
-mean_sea_level_pressure.set_axes_coords(['longitude', 'longitude'], ['latitude', 'latitude'])
+mean_sea_level_pressure.set_axes_coords(['longitude'], ['latitude'])
 
-anim = icp.Animator([mean_sea_level_pressure], (1,2))
-# anim.set_iterator_coord('time')
-# anim.set_axes_coords(['longitude', 'longitude'], ['latitude', 'latitude'])
-anim.set_save_path('gifs/test_subplots2.gif')
-anim.animate()
+anim = icp.Animator([mean_sea_level_pressure], (1,1))
+anim.set_save_path('mp4s/test1.mp4')        # required
+anim.include_coastlines()                   # default is off
+anim.set_plot_color_steps(30)               # default is 25
+anim.set_pause_frames([('end', 12)])        # pause for 15 frames at the end of animation
+anim.set_animation_interval(120)            # default is 100ms
+anim.animate()                              # run animation
 #plt.show()
-anim.save_animation()
+#anim.save_animation()                       # save to file
+anim.save_animation_mp4()
 
 
 del mean_sea_level_pressure
