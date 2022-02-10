@@ -3,6 +3,7 @@
 
 # EXCEPT...
 !.gitignore
+!README.md
 
 !iriscubeanimator.py
 !iriscubehandler.py
