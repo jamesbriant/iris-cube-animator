@@ -1,5 +1,6 @@
 import iris
 import numpy as np
+from datetime import date, timedelta
 
 from typing import List, Tuple
 
@@ -27,6 +28,7 @@ class Cube():
         self.plot_count = 0
         self.x_plotting_coords = []
         self.y_plotting_coords = []
+        self.make_iterator_prettier = False
 
         # Overloaded constructor. 1 arg => cube provided. 2 args => loader and cube_name provided.
         if len(args) == 1:
@@ -101,7 +103,7 @@ class Cube():
         if coord_name in self.dim_coord_names:
             return True
 
-        return False
+        raise Exception(f'{coord_name} is not a valid coodinate of the cube.')
 
     __is_coord = is_coord
 
@@ -201,7 +203,7 @@ class Cube():
         return self.cube
 
 
-    def _find_cube_min_max(self) -> None:
+    def __find_cube_min_max(self) -> None:
         """
         Find and set the maximum and minimum values in the cube
         """
@@ -213,7 +215,7 @@ class Cube():
         Return a tuple of the min and max values of the cube's data.
         """
         if not hasattr(self, 'max_val'):
-            self._find_cube_min_max()
+            self.__find_cube_min_max()
             
         return (self.min_val, self.max_val)
         
@@ -222,17 +224,20 @@ class Cube():
     ####        The following methods are used for the Animator class       ####
     ############################################################################
 
-    def set_iterator_coord(self, coord: str) -> None:
+    def set_iterator_coord(self, coord: str, make_iterator_prettier: bool=False) -> None:
         """
         Set the cube coordinate over which the animation will iterate.
 
         coord : str
             iterator cube coordinate
+        make_iterator_prettier : bool
+            Set to true to convert 'days since...' format into prettier year-month-day format
         """
         if self.__is_coord(coord):
             self.iterator_coord = coord
             self.__set_coord_points(coord)
             self.frame_count = len(self.coord_points[coord])
+            self.make_iterator_prettier = make_iterator_prettier
 
     
     def get_frame_count(self) -> int:
@@ -248,6 +253,25 @@ class Cube():
             valid coordinate name of the provided cube.
         """
         self.coord_points[coord_name] = self.coord(coord_name).points
+
+    
+    def get_coord_point(self, coord_name: str, index: int) -> str:
+        """
+        Returns the value at the index located in the requested coordinate as a str
+
+        coord_name : str
+            requested coordinate
+        index : int
+            index of the requested point requested
+        """
+
+        if self.__is_coord(coord_name):
+            if self.make_iterator_prettier == True:
+                start = date(1900,1,1)
+                delta = timedelta(self.coord_points[coord_name][index]/24)
+                return str(start + delta)
+
+            return str(self.coord_points[coord_name][index])
 
 
     def set_axes_coords(self, x_coords: List[str] , y_coords: List[str]) -> None:
@@ -268,7 +292,7 @@ class Cube():
             self.plot_count = x_coords_length
             # iterate over each requested plot
             for i in range(x_coords_length):
-                if self.is_coord(x_coords[i]) and self.is_coord(y_coords[i]):
+                if self.__is_coord(x_coords[i]) and self.__is_coord(y_coords[i]):
                     # add each coord to the valid list
                     self.x_plotting_coords.append(x_coords[i])
                     self.y_plotting_coords.append(y_coords[i])
@@ -286,7 +310,7 @@ class Cube():
         return self.plot_count
 
 
-    def _create_slices(self) -> None:
+    def create_slices(self) -> None:
         """
         Create slices for the animator class
         """
@@ -295,7 +319,7 @@ class Cube():
             self.slices.append(self.cube.slices([self.x_plotting_coords[i], self.y_plotting_coords[i]]))
 
     
-    def _get_next_slice(self, plot_counter: int):
+    def get_next_slice(self, plot_counter: int):
         """
         Return the next slice from the requested slice list.
 
