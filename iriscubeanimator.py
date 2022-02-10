@@ -91,7 +91,7 @@ class Animator():
         self.pause_frames = pause_frames
 
     
-    def _calculate_pause_frame_locations(self) -> None:
+    def __calculate_pause_frame_locations(self) -> None:
         """
         Calculate the frames at which pauses start and finish.
         """
@@ -113,7 +113,7 @@ class Animator():
         self.total_paused_frames = buffer + 1
 
 
-    def _check_plotting_dimensions(self) -> None:
+    def __check_plotting_dimensions(self) -> None:
         """
         Check if the requested figure dimensions equals the requested plots from the cube handlers.
         """
@@ -124,7 +124,7 @@ class Animator():
         assert cube_list_fig_count == self.fig_count, f"Expected plot count ({cube_list_fig_count}) does not equal requested figure count ({self.fig_count})."
 
 
-    def _set_iterator_frame_count(self) -> None:
+    def __set_iterator_frame_count(self) -> None:
         """
         Set smallest iterator dimension size
         """
@@ -137,15 +137,15 @@ class Animator():
         self.smallest_frame_count = smallest_frame_count
             
 
-    def _create_plotting_slices(self) -> None:
+    def __create_plotting_slices(self) -> None:
         """
         Generate the plotting slices for each cubehandler
         """
         for cube in self.cube_list:
-            cube._create_slices()
+            cube.create_slices()
 
 
-    def _generate_plotting_sequence(self) -> None:
+    def __generate_plotting_sequence(self) -> None:
         """
         Builds plotting sequence accounting for multiple plots from a single cube.
         """
@@ -159,7 +159,7 @@ class Animator():
             n += 1
 
     
-    def _create_subplot_titles(self) -> None:
+    def __create_subplot_titles(self) -> None:
         """
         Create the titles for each subplot
         """
@@ -170,7 +170,7 @@ class Animator():
             self.subplot_titles.append(f'{title} / {units}')
 
 
-    def _set_min_max_vals(self) -> None:
+    def __set_min_max_vals(self) -> None:
         """
         
         """
@@ -214,6 +214,15 @@ class Animator():
         return True
 
 
+    def __get_master_title(self) -> None:
+        """
+        
+        """
+        cube = self.cube_list[0]
+        output = f'{cube.iterator_coord}: {cube.get_coord_point(cube.iterator_coord, self.pseudo_frame - 1)}'
+        return output
+
+
     def animate(self, path: str = None) -> None:
         """
         Run animation
@@ -225,26 +234,26 @@ class Animator():
             self.set_save_path(path)
 
         # Check the requested dimensions match the total number of cubes for plotting
-        self._check_plotting_dimensions()
+        self.__check_plotting_dimensions()
 
         # Set smallest iterator dimension size
-        self._set_iterator_frame_count()
+        self.__set_iterator_frame_count()
 
         # Calculate pause locations
-        self._calculate_pause_frame_locations()
+        self.__calculate_pause_frame_locations()
 
         # Create the figure for plotting
         fig = plt.figure()
 
         # Create the plotting slices
-        self._create_plotting_slices()
-        self._generate_plotting_sequence()
+        self.__create_plotting_slices()
+        self.__generate_plotting_sequence()
 
         # Create subplot titles
-        self._create_subplot_titles()
+        self.__create_subplot_titles()
 
         # Find the min and max values for the cubes
-        self._set_min_max_vals()
+        self.__set_min_max_vals()
 
         I = self.fig_dims[0]
         J = self.fig_dims[1]
@@ -271,8 +280,8 @@ class Animator():
 
                     # Check if pause is requested
                     if self.pause[cube_selector] == False:
-                        data_to_plot = self.cube_list[cube_selector]._get_next_slice(self.plotting_sequence[n-1])
-                        if self.init_plot == False:
+                        data_to_plot = self.cube_list[cube_selector].get_next_slice(self.plotting_sequence[n-1])
+                        if self.init_plot == False and n == 1:
                             self.pseudo_frame += 1
                         self.init_plot = False
                         if frame in self.pause_start_frames:
@@ -303,9 +312,7 @@ class Animator():
                     )
 
                     # add title
-                    plt.gca().set_title(self.subplot_titles[cube_selector] + 
-                        f'\n{self.cube_list[cube_selector].iterator_coord}: {self.pseudo_frame}'
-                    )
+                    plt.gca().set_title(self.subplot_titles[cube_selector])
 
                     # Add the colorbar
                     # ticklist = np.linspace(self.min_vals[cube_selector], self.max_vals[cube_selector], 8)
@@ -314,6 +321,8 @@ class Animator():
                     # Add coastlines if requested
                     if self.coastlines == True:
                         plt.gca().coastlines()
+                
+                plt.suptitle(self.__get_master_title())
 
         self.animation = FuncAnimation(
             fig, 
@@ -325,48 +334,36 @@ class Animator():
         )
 
 
-    def save_animation(self, path: str = None) -> int:
+    def save_animation(self, path: str = None, format: str = 'gif') -> None:
         """
         Save animation as gif
 
         path : str (optional)
             new path is set if provided
+        format : str (optional)
+            save as 'gif' or 'mp4'   
         """
         if not self.is_save_path_set(path):
-            print('save_path not set. Provide a path or use set_save_path().')
-            return 1
+            raise Exception('save_path not set. Provide a path or use set_save_path().')
 
         if self.animation == None:
-            print('No animation to save! Run animate()')
-            return 2
+            raise Exception('No animation to save! Run animate()')
 
-        self.animation.save(self.save_path, writer='imagemagick')
-        return 0
+        if format == 'gif':
+            self.animation.save(self.save_path, writer='imagemagick')
+        elif format == 'mp4':
+            self.animation.save(self.save_path, writer=FFMpegWriter(fps=1000/self.animation_interval, bitrate=100000), dpi=200)
         
 
 
-    def animate_and_save(self, path: str = None) -> None:
+    def animate_and_save(self, path: str = None, format: str = 'gif') -> None:
         """
         Run animation and save to path.
 
         path : str (optional)
-            new path is set if provided        
+            new path is set if provided
+        format : str (optional)
+            save as 'gif' or 'mp4'   
         """
         self.animate()
-        self.save_animation(path)
-
-
-    def save_animation_mp4(self, path: str = None) -> int:
-        """
-        
-        """
-        if not self.is_save_path_set(path):
-            print('save_path not set. Provide a path or use set_save_path().')
-            return 1
-
-        if self.animation == None:
-            print('No animation to save! Run animate()')
-            return 2
-
-        self.animation.save(self.save_path, writer=FFMpegWriter(fps=1000/self.animation_interval, bitrate=100000), dpi=200)
-        return 0
+        self.save_animation(path, format)
