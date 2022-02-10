@@ -28,8 +28,8 @@ class Animator():
         self.plot_color_steps = 25
         self.pause = False
         self.pause_frames = []
-        self.pause_start_frames = []
-        self.pause_end_frames = []
+        self.pause_start_frames = [0]
+        self.pause_end_frames = [1]
         self.total_paused_frames = 0
 
     
@@ -97,14 +97,20 @@ class Animator():
         """
         buffer = 0
         for start, duration in self.pause_frames:
-            if start == 'end':
-                start = self.smallest_frame_count - 2
-            
+            if start == 0 or start == 1:
+                raise Exception(f'For reasons that are too complicated to explain, please don\'t add a pause at frame 0 or frame 1.')
+            # elif start == 'start':
+            #     start = 0
+            elif start == 'end':
+                start = self.smallest_frame_count - 1
+            elif start < 0:
+                start += self.smallest_frame_count
+
             self.pause_start_frames.append(start + buffer)
             self.pause_end_frames.append(start + buffer + duration)
             buffer += duration
 
-        self.total_paused_frames = buffer
+        self.total_paused_frames = buffer + 1
 
 
     def _check_plotting_dimensions(self) -> None:
@@ -211,7 +217,7 @@ class Animator():
     def animate(self, path: str = None) -> None:
         """
         Run animation
-
+        
         path : str (optional)
             new path is set if provided
         """
@@ -245,7 +251,9 @@ class Animator():
 
         self.pause = [False]*self.fig_count
         self.paused_frame_data = []
-        self.pseudo_frame = 0
+        self.pseudo_frame = 1
+
+        self.init_plot = True
 
         def update(frame=0):
             # clear the current figure
@@ -264,7 +272,9 @@ class Animator():
                     # Check if pause is requested
                     if self.pause[cube_selector] == False:
                         data_to_plot = self.cube_list[cube_selector]._get_next_slice(self.plotting_sequence[n-1])
-                        self.pseudo_frame += 1
+                        if self.init_plot == False:
+                            self.pseudo_frame += 1
+                        self.init_plot = False
                         if frame in self.pause_start_frames:
                             # Start of a pause!
                             self.pause[cube_selector] = True
@@ -293,7 +303,9 @@ class Animator():
                     )
 
                     # add title
-                    plt.gca().set_title(self.subplot_titles[cube_selector] + f' - frame: {self.pseudo_frame}')
+                    plt.gca().set_title(self.subplot_titles[cube_selector] + 
+                        f'\n{self.cube_list[cube_selector].iterator_coord}: {self.pseudo_frame}'
+                    )
 
                     # Add the colorbar
                     # ticklist = np.linspace(self.min_vals[cube_selector], self.max_vals[cube_selector], 8)
@@ -302,12 +314,11 @@ class Animator():
                     # Add coastlines if requested
                     if self.coastlines == True:
                         plt.gca().coastlines()
-            
+
         self.animation = FuncAnimation(
             fig, 
-            update, 
-            init_func=update, 
-            frames=self.smallest_frame_count + self.total_paused_frames - 1, 
+            update,
+            frames=self.smallest_frame_count + self.total_paused_frames,
             interval=self.animation_interval, 
             blit=False, 
             repeat=False
