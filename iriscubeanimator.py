@@ -274,9 +274,6 @@ class Animator():
                 for j in range(J): #iterate over the columns
                     # select the n'th subplot
                     n += 1
-                    # plt.subplot(I, J, n)
-
-                    # plt.axes(projection=ccrs.Orthographic(central_longitude=0.0, central_latitude=90.0))
 
                     cube_selector = self.cube_selector_sequence[n-1]
                     cube = self.cube_list[cube_selector]
