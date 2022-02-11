@@ -3,7 +3,7 @@ import numpy as np
 from datetime import date, timedelta
 import cartopy.crs as ccrs
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 class Cube():
     """
@@ -226,19 +226,25 @@ class Cube():
     ####        The following methods are used for the Animator class       ####
     ############################################################################
 
-    def set_iterator_coord(self, coord: str, make_iterator_prettier: bool=False) -> None:
+    def set_iterator_coord(self, coord: str, make_iterator_prettier: Union[bool, List]=False) -> None:
         """
         Set the cube coordinate over which the animation will iterate.
 
         coord : str
             iterator cube coordinate
-        make_iterator_prettier : bool
-            Set to true to convert 'days since...' format into prettier year-month-day format
+        make_iterator_prettier : Union[bool, List]
+            Set to true to convert 'days since...' format into prettier year-month-day format,
+            alternatively provide a custom list of items to display instead.
         """
         if self.__is_coord(coord):
             self.iterator_coord = coord
             self.__set_coord_points(coord)
             self.frame_count = len(self.coord_points[coord])
+
+            # Check the prettier iterator is the right length
+            if isinstance(make_iterator_prettier, list):
+                n = len(self.coord_points[coord])
+                assert n == self.frame_count, f"Length of 'prettier iterator' ({n}) does not equal length of the requested iterator ({coord}, {self.frame_count})"
             self.make_iterator_prettier = make_iterator_prettier
 
     
@@ -268,7 +274,9 @@ class Cube():
         """
 
         if self.__is_coord(coord_name):
-            if self.make_iterator_prettier == True:
+            if isinstance(self.make_iterator_prettier, list):
+                return self.make_iterator_prettier[index]
+            elif self.make_iterator_prettier == True:
                 start = date(1900,1,1)
                 delta = timedelta(self.coord_points[coord_name][index]/24)
                 return str(start + delta)
