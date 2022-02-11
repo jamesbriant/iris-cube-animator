@@ -1,6 +1,7 @@
 import iris
 import numpy as np
 from datetime import date, timedelta
+import cartopy.crs as ccrs
 
 from typing import List, Tuple
 
@@ -29,6 +30,7 @@ class Cube():
         self.x_plotting_coords = []
         self.y_plotting_coords = []
         self.make_iterator_prettier = False
+        self.projection = None
 
         # Overloaded constructor. 1 arg => cube provided. 2 args => loader and cube_name provided.
         if len(args) == 1:
@@ -327,3 +329,20 @@ class Cube():
             0 <= plot_counter < plot_count
         """
         return next(self.slices[plot_counter])
+
+
+    def set_projection(self, projection: ccrs.Projection) -> None:
+        """
+        Set a desired cartopy projection
+
+        projection : ccrs.Projection
+            the desired projection to be used when plotting
+        """
+        self.projection = projection
+
+    
+    def get_projection(self) -> ccrs.Projection:
+        """
+        
+        """
+        return self.projection

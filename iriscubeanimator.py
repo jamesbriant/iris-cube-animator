@@ -274,13 +274,18 @@ class Animator():
                 for j in range(J): #iterate over the columns
                     # select the n'th subplot
                     n += 1
-                    plt.subplot(I, J, n)
+                    # plt.subplot(I, J, n)
+
+                    # plt.axes(projection=ccrs.Orthographic(central_longitude=0.0, central_latitude=90.0))
 
                     cube_selector = self.cube_selector_sequence[n-1]
+                    cube = self.cube_list[cube_selector]
+
+                    plt.subplot(I, J, n, projection=cube.get_projection())
 
                     # Check if pause is requested
                     if self.pause[cube_selector] == False:
-                        data_to_plot = self.cube_list[cube_selector].get_next_slice(self.plotting_sequence[n-1])
+                        data_to_plot = cube.get_next_slice(self.plotting_sequence[n-1])
                         if self.init_plot == False and n == 1:
                             self.pseudo_frame += 1
                         self.init_plot = False
@@ -322,7 +327,7 @@ class Animator():
                     if self.coastlines == True:
                         plt.gca().coastlines()
                 
-                plt.suptitle(self.__get_master_title())
+            plt.suptitle(self.__get_master_title())
 
         self.animation = FuncAnimation(
             fig, 
