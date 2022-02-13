@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import cartopy.crs as ccrs
 
 from typing import List, Tuple, Union
+import warnings
 
 class Cube():
     """
@@ -46,9 +47,8 @@ class Cube():
 
         # Check the inputs
         if loader != None and cube_name != None and cube != None:
-            print("Please provide only a loader and cube_name or a single cube, not all three!")
+            warnings.warn("Please provide only a loader and cube_name or a single cube, not all three! Using the loader and cube_name.")
             # Use the loader, not the provided cube
-            print("Using the loader and cube_name")
             cube = None
 
         # if a loader and cube_name is provided
@@ -59,21 +59,43 @@ class Cube():
             if len(self.cube) == 1:
                 self.cube = self.cube[0]
             elif len(self.cube) > 1:
-                print("Multiple cubes with this name, taking the first one.")
+                warnings.warn("Multiple cubes with this name, taking the first one.")
             else:
-                print(f"No cubes found with this name: {cube_name}")
+                raise Exception(f"No cubes found with this name: {cube_name}")
 
         elif cube != None:
             # save the provided cube
             self.cube = cube
         else:
-            print("Please provide either a loader and valid cube_name or a single iris cube.")
+            raise Exception("Please provide either a loader and valid cube_name or a single iris cube.")
 
         # get names of all the dim-coordinates
         self.dim_coord_names = []
         for coord in self.cube.coords():
             self.dim_coord_names.append(coord.name())
 
+
+    def concatenate(self, new_cubes: List) -> None:
+        """
+        Concatenate additional cubes onto this object
+
+        new_cubes : List[iris.cube.Cube, Cube]
+            list of cubes to concatenate on to the original cube in this object.
+        """
+        # Convert all provides cubes to iris.cube.Cube
+        dummy_list = [self.cube]
+        for new_cube in new_cubes:
+            if isinstance(new_cube, Cube):
+                dummy_list.append(new_cube.get_cube())
+            else:
+                dummy_list.append(new_cube)
+
+        # Try the concatenation procedure
+        try:
+            self.cube = iris.cube.CubeList(dummy_list).concatenate()[0]
+            del dummy_list
+        except:
+            warnings.warn("Concatenation failed. Retaining the original cube.")
 
 
     def __repr__(self) -> str:
@@ -134,7 +156,7 @@ class Cube():
 
     def set_constraint(self, variable: str, condition) -> None:
         """
-        Method for setting constraint against valid coordinate of the cube.
+        Method for setting constraint against arbitrary valid coordinate of the cube.
 
         variable : str
             valid coordinate of the cube
@@ -158,47 +180,48 @@ class Cube():
 
     def set_latitude_constraint(self, condition):
         variable = 'latitude'
-        if self.__is_coord(variable):
-            constraint = iris.Constraint(latitude=condition)
-            self.__apply_constraint(constraint)
-        else:
-            print(f'{variable} is not a valid dimension coordinate. Requested constraint not applied.')
+        
+        assert self.__is_coord(variable), f'{variable} is not a valid dimension coordinate. Requested constraint not applied.'
+
+        constraint = iris.Constraint(latitude=condition)
+        self.__apply_constraint(constraint)
 
 
     def set_altitude_constraint(self, condition):
         variable = 'altitude'
-        if self.__is_coord(variable):
-            constraint = iris.Constraint(altitude=condition)
-            self.__apply_constraint(constraint)
-        else:
-            print(f'{variable} is not a valid dimension coordinate. Requested constraint not applied.')
+
+        assert self.__is_coord(variable), f'{variable} is not a valid dimension coordinate. Requested constraint not applied.'
+
+        constraint = iris.Constraint(altitude=condition)
+        self.__apply_constraint(constraint)
+
 
     
     def set_model_level_constraint(self, condition):
         variable = 'model_level'
-        if self.__is_coord(variable):
-            constraint = iris.Constraint(model_level=condition)
-            self.__apply_constraint(constraint)
-        else:
-            print(f'{variable} is not a valid dimension coordinate. Requested constraint not applied.')
+        
+        assert self.__is_coord(variable), f'{variable} is not a valid dimension coordinate. Requested constraint not applied.'
+
+        constraint = iris.Constraint(model_level=condition)
+        self.__apply_constraint(constraint)
 
 
     def set_model_level_number_constraint(self, condition):
         variable = 'model_level_number'
-        if self.__is_coord(variable):
-            constraint = iris.Constraint(model_level_number=condition)
-            self.__apply_constraint(constraint)
-        else:
-            print(f'{variable} is not a valid dimension coordinate. Requested constraint not applied.')
+        
+        assert self.__is_coord(variable), f'{variable} is not a valid dimension coordinate. Requested constraint not applied.'
+
+        constraint = iris.Constraint(model_level_number=condition)
+        self.__apply_constraint(constraint)
 
 
     def set_time_constraint(self, condition):
         variable = 'time'
-        if self.__is_coord(variable):
-            constraint = iris.Constraint(time=condition)
-            self.__apply_constraint(constraint)
-        else:
-            print(f'{variable} is not a valid dimension coordinate. Requested constraint not applied.')
+        
+        assert self.__is_coord(variable), f'{variable} is not a valid dimension coordinate. Requested constraint not applied.'
+
+        constraint = iris.Constraint(time=condition)
+        self.__apply_constraint(constraint)
 
 
     def get_cube(self):
@@ -277,10 +300,8 @@ class Cube():
             if isinstance(self.make_iterator_prettier, list):
                 return self.make_iterator_prettier[index]
             elif self.make_iterator_prettier == True:
-                start = date(1900,1,1)
-                delta = timedelta(self.coord_points[coord_name][index]/24)
-                return str(start + delta)
-
+                return self.coord('time').cell(index)
+                
             return str(self.coord_points[coord_name][index])
 
 
@@ -349,8 +370,8 @@ class Cube():
         self.projection = projection
 
     
-    def get_projection(self) -> ccrs.Projection:
+    def get_projection(self) -> Union[ccrs.Projection, None]:
         """
-        
+        Returns the projection. Used only by the Animator class.
         """
         return self.projection
