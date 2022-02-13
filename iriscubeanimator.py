@@ -317,8 +317,8 @@ class Animator():
                     plt.gca().set_title(self.subplot_titles[cube_selector])
 
                     # Add the colorbar
-                    # ticklist = np.linspace(self.min_vals[cube_selector], self.max_vals[cube_selector], 8)
-                    plt.colorbar(orientation="horizontal")#, ticks=ticklist)
+                    ticklist = np.linspace(self.min_vals[cube_selector], self.max_vals[cube_selector], 6)
+                    plt.colorbar(orientation="horizontal", ticks=ticklist)
 
                     # Add coastlines if requested
                     if self.coastlines == True:
