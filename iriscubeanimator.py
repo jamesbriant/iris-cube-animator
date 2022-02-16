@@ -31,6 +31,7 @@ class Animator():
         self.pause_start_frames = [0]
         self.pause_end_frames = [1]
         self.total_paused_frames = 0
+        self.alternative_master_title = None
 
     
     def add_cubes(self, new_cubes: List[ich.Cube]) -> None:
@@ -214,13 +215,26 @@ class Animator():
         return True
 
 
-    def __get_master_title(self) -> None:
+    def set_alternative_master_title(self, title: str) -> None:
         """
+        Set an alternative title to appear at the top of the animation
+
+        title : str
+            alternative title
+        """
+        self.alternative_master_title = title
+
+
+    def __get_master_title(self) -> str:
+        """
+        Return the master title
+        """
+        if self.alternative_master_title == None:
+            cube = self.cube_list[0]
+            output = f'{cube.iterator_coord}: {cube.get_coord_point(cube.iterator_coord, self.pseudo_frame - 1)}'
+            return output
         
-        """
-        cube = self.cube_list[0]
-        output = f'{cube.iterator_coord}: {cube.get_coord_point(cube.iterator_coord, self.pseudo_frame - 1)}'
-        return output
+        return self.alternative_master_title
 
 
     def animate(self, path: str = None) -> None:
