@@ -1,6 +1,5 @@
 import iris
 import numpy as np
-from datetime import date, timedelta
 import cartopy.crs as ccrs
 
 from typing import List, Tuple, Union
@@ -60,6 +59,7 @@ class Cube():
                 self.cube = self.cube[0]
             elif len(self.cube) > 1:
                 warnings.warn("Multiple cubes with this name, taking the first one.")
+                self.cube = self.cube[0]
             else:
                 raise Exception(f"No cubes found with this name: {cube_name}")
 
