@@ -237,12 +237,14 @@ class Animator():
         return self.alternative_master_title
 
 
-    def animate(self, path: str = None) -> None:
+    def animate(self, path: str = None, print_frame_progress: bool=False) -> None:
         """
         Run animation
         
         path : str (optional)
             new path is set if provided
+        print_frame_progress : bool (optional)
+            display the frame progress
         """
         if path != None:
             self.set_save_path(path)
@@ -279,6 +281,9 @@ class Animator():
         self.init_plot = True
 
         def update(frame=0):
+            if print_frame_progress == True and frame % 5 == 0:
+                print('frame = ', frame)
+
             # clear the current figure
             plt.gcf().clf()
 
@@ -350,14 +355,16 @@ class Animator():
         )
 
 
-    def save_animation(self, path: str = None, format: str = 'gif') -> None:
+    def save_animation(self, path: str = None, format: str = 'gif', encoder: Union[str, None] = None) -> None:
         """
         Save animation as gif
 
         path : str (optional)
             new path is set if provided
         format : str (optional)
-            save as 'gif' or 'mp4'   
+            save as 'gif' or 'mp4'
+        encoder : Union[str, None]
+            default chosen by FFMpegWriter is 'h264'
         """
         if not self.is_save_path_set(path):
             raise Exception('save_path not set. Provide a path or use set_save_path().')
@@ -368,7 +375,7 @@ class Animator():
         if format == 'gif':
             self.animation.save(self.save_path, writer='imagemagick')
         elif format == 'mp4':
-            self.animation.save(self.save_path, writer=FFMpegWriter(fps=1000/self.animation_interval, bitrate=100000), dpi=200)
+            self.animation.save(self.save_path, writer=FFMpegWriter(fps=1000/self.animation_interval, bitrate=100000, codec=encoder), dpi=200)
         
 
 
