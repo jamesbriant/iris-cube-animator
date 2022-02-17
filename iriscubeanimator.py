@@ -379,7 +379,7 @@ class Animator():
         
 
 
-    def animate_and_save(self, path: str = None, format: str = 'gif') -> None:
+    def animate_and_save(self, path: str = None, format: str = 'gif', encoder: Union[str, None] = None) -> None:
         """
         Run animation and save to path.
 
@@ -389,4 +389,4 @@ class Animator():
             save as 'gif' or 'mp4'   
         """
         self.animate()
-        self.save_animation(path, format)
+        self.save_animation(path, format, encoder=encoder)
