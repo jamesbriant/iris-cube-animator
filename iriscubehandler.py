@@ -154,6 +154,17 @@ class Cube():
         return None
 
 
+    def get_coord_units(self, coord: str) -> str:
+        """
+        Return the units of the requested coord
+
+        coord : str
+            requested coordinate
+        """
+        if self.__is_coord(coord):
+            return self.cube.coord(coord).units
+
+
     def set_constraint(self, variable: str, condition) -> None:
         """
         Method for setting constraint against arbitrary valid coordinate of the cube.
